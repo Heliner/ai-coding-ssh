@@ -6,6 +6,8 @@
 [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-blue)](https://code.claude.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
+![demo](./demo.gif)
+
 在**无公网 IP、无外网**的内网 Linux 服务器上使用 Claude Code CLI。
 
 通过 SSH 反向隧道，将本地 Mac 上的 API 代理端口"带入"远程服务器，让远程的 Claude Code 直接通过 `localhost` 访问 Anthropic API。

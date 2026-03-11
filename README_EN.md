@@ -6,6 +6,8 @@
 [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-blue)](https://code.claude.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
+![demo](./demo.gif)
+
 Use **Claude Code CLI** on remote intranet Linux servers that have **no public IP and no internet access**.
 
 By leveraging SSH reverse tunnels, the local API proxy port on your Mac is "carried into" the remote server, allowing Claude Code to reach the Anthropic API through `localhost`.
