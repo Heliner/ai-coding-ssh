@@ -4,6 +4,15 @@
 
 通过 SSH 反向隧道，将本地 Mac 上的 API 代理端口"带入"远程服务器，让远程的 Claude Code 直接通过 `localhost` 访问 Anthropic API。
 
+## 特性
+
+- **零编译，纯源码** — 全部由 Shell 脚本 + Node.js 源码组成，没有任何二进制文件，可直接阅读、修改和审计
+- **一条命令连接** — `claude-ssh user@server` 自动完成代理启动、SSH 隧道建立、远程环境变量配置
+- **SSE 流式支持** — 代理层完整透传 Server-Sent Events，Claude Code 的流式输出不受影响
+- **多服务器复用** — 一个代理实例可同时服务多条 SSH 隧道
+- **可选鉴权** — 支持 token 认证，适合团队共用场景
+- **离线安装** — 支持在无外网的服务器上离线安装 Claude Code CLI
+
 ## 原理
 
 ```
@@ -17,13 +26,40 @@
                                   └──────────────────────┘
 ```
 
+开发者通过 SSH 连接远程服务器时，利用 SSH 的 `-R`（反向端口转发）功能，将本地代理端口映射到远程服务器的 `localhost:18080`。远程的 Claude Code CLI 通过 `ANTHROPIC_BASE_URL` 环境变量指向该地址，所有 API 请求经 SSH 隧道回传到本地代理，再由代理转发至 Anthropic API。
+
+## 项目结构
+
+```
+claude-ssh-proxy/
+├── bin/
+│   ├── claude-ssh                 # 核心连接脚本（Bash）
+│   └── claude-ssh-install-remote  # 远程安装辅助脚本（Bash）
+├── lib/
+│   └── proxy.mjs                  # API 代理服务器（Node.js, 纯源码）
+├── setup.sh                       # 本地一键安装脚本
+├── package.json
+├── LICENSE
+└── README.md
+```
+
+所有代码均为**可读的源码文件**，不包含任何编译产物或二进制依赖。Shell 脚本直接执行，Node.js 代理为单文件 ES Module，无需 `npm install`。
+
 ## 快速开始
 
 ### 1. 安装（在 Mac 上）
 
 ```bash
-# 克隆或下载本项目后
+git clone https://github.com/Heliner/claude-ssh-proxy.git
+cd claude-ssh-proxy
 bash setup.sh
+```
+
+或者直接使用，无需安装：
+
+```bash
+# 直接从项目目录运行
+./bin/claude-ssh user@server
 ```
 
 ### 2. 在远程服务器安装 Claude Code
@@ -43,6 +79,18 @@ claude-ssh user@server
 ```
 
 进入远程服务器后，直接运行 `claude` 即可。环境变量已自动配置好。
+
+## 前置要求
+
+**本地 Mac：**
+
+- Node.js >= 18
+- SSH 客户端
+
+**远程服务器：**
+
+- Node.js >= 18（Claude Code CLI 的运行依赖）
+- SSH Server（使用默认的 localhost 绑定即可）
 
 ## 命令详解
 
@@ -107,16 +155,6 @@ curl http://localhost:18080/__health
 | `CLAUDE_SSH_REMOTE_PORT` | 远程隧道端口 | 18080 |
 | `CLAUDE_SSH_PROXY_TOKEN` | 代理鉴权 token | 无 |
 | `ANTHROPIC_API_KEY` | Anthropic API Key | 无（自动传递到远程） |
-
-## 前置要求
-
-**本地 Mac：**
-- Node.js >= 18
-- SSH 客户端
-
-**远程服务器：**
-- Node.js >= 18（用于 Claude Code CLI）
-- SSH Server（支持 `GatewayPorts` 或使用默认的 localhost 绑定）
 
 ## 常见场景
 
