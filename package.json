@@ -1,11 +1,11 @@
 {
-  "name": "claude-ssh-proxy",
+  "name": "ai-coding-ssh",
   "version": "1.0.0",
-  "description": "Use Claude Code CLI on remote servers via SSH reverse tunnel",
+  "description": "Use Claude Code, Gemini CLI, and Codex CLI on remote servers via SSH reverse tunnel",
   "type": "module",
   "bin": {
-    "claude-ssh": "./bin/claude-ssh",
-    "claude-ssh-install-remote": "./bin/claude-ssh-install-remote"
+    "ai-ssh": "./bin/ai-ssh",
+    "ai-ssh-install-remote": "./bin/ai-ssh-install-remote"
   },
   "files": [
     "bin/",
@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "proxy": "node lib/proxy.mjs",
-    "test": "node lib/proxy.mjs --help"
+    "test": "node test/test-proxy.mjs"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -22,15 +22,19 @@
   "keywords": [
     "claude",
     "claude-code",
+    "gemini",
+    "codex",
+    "openai",
     "ssh",
     "proxy",
     "remote",
     "tunnel",
-    "anthropic"
+    "anthropic",
+    "google"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/user/claude-ssh-proxy"
+    "url": "https://github.com/Heliner/ai-coding-ssh"
   }
 }

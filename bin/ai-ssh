@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
 # ============================================================
-# claude-ssh — Connect to a remote server with Claude Code support
+# ai-ssh — Connect to a remote server with AI coding tools
 #
 # Automatically starts the local API proxy and creates an SSH
-# reverse tunnel so the remote server can reach Anthropic API.
+# reverse tunnel so the remote server can reach AI APIs.
+# Supports: Claude Code, Gemini CLI, Codex CLI
 # ============================================================
 
 set -euo pipefail
@@ -13,11 +14,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LIB_DIR="$(cd "$SCRIPT_DIR/../lib" && pwd)"
 
 # --- Defaults ---
-PROXY_PORT="${CLAUDE_SSH_PROXY_PORT:-18080}"
-REMOTE_PORT="${CLAUDE_SSH_REMOTE_PORT:-18080}"
-PROXY_TOKEN="${CLAUDE_SSH_PROXY_TOKEN:-}"
-PID_FILE="/tmp/claude-ssh-proxy.pid"
-LOG_FILE="/tmp/claude-ssh-proxy.log"
+PROXY_PORT="${AI_SSH_PROXY_PORT:-18080}"
+REMOTE_PORT="${AI_SSH_REMOTE_PORT:-18080}"
+PROXY_TOKEN="${AI_SSH_PROXY_TOKEN:-}"
+PID_FILE="/tmp/ai-ssh-proxy.pid"
+LOG_FILE="/tmp/ai-ssh-proxy.log"
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -29,10 +30,12 @@ NC='\033[0m'
 # --- Usage ---
 usage() {
   cat <<'USAGE'
-claude-ssh — SSH with Claude Code reverse tunnel
+ai-ssh — SSH with AI coding tools reverse tunnel
+
+Supports: Claude Code (Anthropic), Gemini CLI (Google), Codex CLI (OpenAI)
 
 Usage:
-  claude-ssh [options] [user@]host [-- extra_ssh_args]
+  ai-ssh [options] [user@]host [-- extra_ssh_args]
 
 Options:
   -p, --proxy-port PORT    Local proxy port (default: 18080)
@@ -46,16 +49,19 @@ Options:
   -h, --help               Show this help
 
 Environment Variables:
-  CLAUDE_SSH_PROXY_PORT    Same as --proxy-port
-  CLAUDE_SSH_REMOTE_PORT   Same as --remote-port
-  CLAUDE_SSH_PROXY_TOKEN   Same as --token
-  ANTHROPIC_API_KEY        API key (passed to remote if set)
+  AI_SSH_PROXY_PORT        Same as --proxy-port
+  AI_SSH_REMOTE_PORT       Same as --remote-port
+  AI_SSH_PROXY_TOKEN       Same as --token
+  ANTHROPIC_API_KEY        Anthropic API key (passed to remote if set)
+  GEMINI_API_KEY           Google Gemini API key (passed to remote if set)
+  GOOGLE_API_KEY           Google API key (alternative to GEMINI_API_KEY)
+  OPENAI_API_KEY           OpenAI API key (passed to remote if set)
 
 Examples:
-  claude-ssh user@server
-  claude-ssh -p 9090 user@server
-  claude-ssh --install-remote user@server
-  claude-ssh user@server -- -L 3000:localhost:3000
+  ai-ssh user@server
+  ai-ssh -p 9090 user@server
+  ai-ssh --install-remote user@server
+  ai-ssh user@server -- -L 3000:localhost:3000
 USAGE
 }
 
@@ -96,11 +102,28 @@ start_proxy() {
     return 0
   fi
 
+  # Auto-detect a common upstream gateway from local env vars.
+  # If OPENAI_BASE_URL or GOOGLE_GEMINI_BASE_URL points to a non-localhost host,
+  # use it as PROXY_UPSTREAM so all providers route through the same gateway.
+  if [ -z "${PROXY_UPSTREAM:-}" ]; then
+    for var in OPENAI_BASE_URL GOOGLE_GEMINI_BASE_URL ANTHROPIC_BASE_URL; do
+      local val="${!var:-}"
+      if [ -n "$val" ] && [[ "$val" != *"localhost"* ]] && [[ "$val" != *"127.0.0.1"* ]]; then
+        export PROXY_UPSTREAM="$val"
+        info "Auto-detected upstream gateway: ${PROXY_UPSTREAM} (from \$${var})"
+        break
+      fi
+    done
+  fi
+
   info "Starting local proxy on 127.0.0.1:${PROXY_PORT}..."
 
   local proxy_args=(node "$LIB_DIR/proxy.mjs" --port "$PROXY_PORT")
   if [ -n "$PROXY_TOKEN" ]; then
     proxy_args+=(--token "$PROXY_TOKEN")
+  fi
+  if [ -n "${PROXY_UPSTREAM:-}" ]; then
+    proxy_args+=(--upstream "$PROXY_UPSTREAM")
   fi
 
   "${proxy_args[@]}" >> "$LOG_FILE" 2>&1 &
@@ -197,7 +220,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$SSH_TARGET" ]; then
-  err "Missing SSH target. Usage: claude-ssh [options] user@host"
+  err "Missing SSH target. Usage: ai-ssh [options] user@host"
   exit 1
 fi
 
@@ -224,22 +247,83 @@ if ! $KEEP_PROXY && ! $NO_PROXY; then
   trap 'stop_proxy' EXIT
 fi
 
-# Build remote env setup
-REMOTE_ENV="export ANTHROPIC_BASE_URL=http://localhost:${REMOTE_PORT}"
+# Build remote env file content — multi-provider
+# Written to a temp file on the remote and sourced AFTER shell rc files,
+# so it overrides any hardcoded BASE_URL in .bashrc/.zshrc.
+REMOTE_ENV_LINES="export ANTHROPIC_BASE_URL=http://localhost:${REMOTE_PORT}"
+REMOTE_ENV_LINES="${REMOTE_ENV_LINES}
+export GOOGLE_GEMINI_BASE_URL=http://localhost:${REMOTE_PORT}/gemini"
+REMOTE_ENV_LINES="${REMOTE_ENV_LINES}
+export OPENAI_BASE_URL=http://localhost:${REMOTE_PORT}/openai"
+
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-  REMOTE_ENV="${REMOTE_ENV}; export ANTHROPIC_API_KEY='${ANTHROPIC_API_KEY}'"
+  REMOTE_ENV_LINES="${REMOTE_ENV_LINES}
+export ANTHROPIC_API_KEY='${ANTHROPIC_API_KEY}'"
+fi
+if [ -n "${GEMINI_API_KEY:-}" ]; then
+  REMOTE_ENV_LINES="${REMOTE_ENV_LINES}
+export GEMINI_API_KEY='${GEMINI_API_KEY}'"
+fi
+if [ -n "${GOOGLE_API_KEY:-}" ]; then
+  REMOTE_ENV_LINES="${REMOTE_ENV_LINES}
+export GOOGLE_API_KEY='${GOOGLE_API_KEY}'"
+fi
+if [ -n "${OPENAI_API_KEY:-}" ]; then
+  REMOTE_ENV_LINES="${REMOTE_ENV_LINES}
+export OPENAI_API_KEY='${OPENAI_API_KEY}'"
 fi
 if [ -n "$PROXY_TOKEN" ]; then
-  # The remote Claude Code needs to send the token in headers
-  # We inject a small wrapper if token is set
-  REMOTE_ENV="${REMOTE_ENV}; export CLAUDE_SSH_PROXY_TOKEN='${PROXY_TOKEN}'"
+  REMOTE_ENV_LINES="${REMOTE_ENV_LINES}
+export AI_SSH_PROXY_TOKEN='${PROXY_TOKEN}'"
 fi
 
 info "Connecting to ${CYAN}${SSH_TARGET}${NC} with reverse tunnel :${REMOTE_PORT} → :${PROXY_PORT}"
 echo ""
 echo -e "  ${CYAN}Remote server will have:${NC}"
-echo -e "    ANTHROPIC_BASE_URL=http://localhost:${REMOTE_PORT}"
+echo -e "    ANTHROPIC_BASE_URL=http://localhost:${REMOTE_PORT}          (Claude Code)"
+echo -e "    GOOGLE_GEMINI_BASE_URL=http://localhost:${REMOTE_PORT}/gemini  (Gemini CLI)"
+echo -e "    OPENAI_BASE_URL=http://localhost:${REMOTE_PORT}/openai      (Codex CLI)"
 echo ""
+
+# Strategy: write env to /tmp/.ai-proxy-env on remote, then start a shell
+# that sources it AFTER all rc files (.bashrc/.zshrc) have loaded.
+#
+# - zsh:  rc load order is .zshenv → .zprofile → .zshrc → .zlogin
+#         We use ZDOTDIR to symlink original rc files and add our env in .zlogin (last).
+# - bash: We use --rcfile with a custom rc that sources ~/.bashrc first, then our env.
+
+# Build the remote bootstrap script
+read -r -d '' REMOTE_BOOTSTRAP <<'BOOTSTRAP_TMPL' || true
+# --- Write proxy env to temp file ---
+cat > /tmp/.ai-proxy-env << 'ENVEOF'
+__REMOTE_ENV_LINES__
+ENVEOF
+
+SHELL_NAME=$(basename "$SHELL")
+
+if [ "$SHELL_NAME" = "zsh" ]; then
+  # zsh: use ZDOTDIR so .zlogin (loaded last) sources our env
+  mkdir -p /tmp/.ai-proxy-zsh
+  for f in .zshenv .zprofile .zshrc; do
+    [ -f "$HOME/$f" ] && ln -sf "$HOME/$f" "/tmp/.ai-proxy-zsh/$f"
+  done
+  cat > /tmp/.ai-proxy-zsh/.zlogin << 'ZEOF'
+[ -f ~/.zlogin ] && source ~/.zlogin
+source /tmp/.ai-proxy-env
+ZEOF
+  exec env ZDOTDIR=/tmp/.ai-proxy-zsh zsh -li
+else
+  # bash: use --rcfile to source ~/.bashrc first, then our env
+  cat > /tmp/.ai-proxy-bashrc << 'BEOF'
+[ -f ~/.bashrc ] && source ~/.bashrc
+source /tmp/.ai-proxy-env
+BEOF
+  exec bash --rcfile /tmp/.ai-proxy-bashrc -i
+fi
+BOOTSTRAP_TMPL
+
+# Inject actual env lines into the template
+REMOTE_BOOTSTRAP="${REMOTE_BOOTSTRAP//__REMOTE_ENV_LINES__/$REMOTE_ENV_LINES}"
 
 # SSH with reverse tunnel
 ssh \
@@ -247,4 +331,4 @@ ssh \
   "${SSH_OPTS[@]}" \
   ${EXTRA_SSH_ARGS[@]+"${EXTRA_SSH_ARGS[@]}"} \
   "$SSH_TARGET" \
-  -t "${REMOTE_ENV}; exec \$SHELL -l"
+  -t "$REMOTE_BOOTSTRAP"
