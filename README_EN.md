@@ -16,7 +16,7 @@ By leveraging SSH reverse tunnels, the local API proxy port on your Mac is "carr
 
 - **Multi-AI tool support** — Supports Claude Code (Anthropic), Gemini CLI (Google), and Codex CLI (OpenAI) simultaneously
 - **Zero compilation, pure source code** — Shell scripts + Node.js source only, no binaries, fully readable and auditable
-- **One-command connection** — `ai-ssh user@server` auto-starts proxy, creates SSH tunnel, and configures remote env
+- **One-command connection** — `ai-coding-ssh user@server` auto-starts proxy, creates SSH tunnel, and configures remote env
 - **SSE streaming support** — Full Server-Sent Events passthrough for streaming output
 - **Multi-server reuse** — A single proxy instance can serve multiple SSH tunnels simultaneously
 - **Optional authentication** — Token-based auth for team sharing scenarios
@@ -44,8 +44,8 @@ When you SSH into the remote server, the `-R` (reverse port forwarding) flag map
 ```
 ai-coding-ssh/
 ├── bin/
-│   ├── ai-ssh                 # Core connection script (Bash)
-│   └── ai-ssh-install-remote  # Remote installation helper (Bash)
+│   ├── ai-coding-ssh                 # Core connection script (Bash)
+│   └── ai-coding-ssh-install-remote  # Remote installation helper (Bash)
 ├── lib/
 │   └── proxy.mjs                  # Multi-provider API proxy server (Node.js, pure source)
 ├── test/
@@ -73,23 +73,23 @@ Or use directly without installation:
 
 ```bash
 # Run directly from the project directory
-./bin/ai-ssh user@server
+./bin/ai-coding-ssh user@server
 ```
 
 ### 2. Install Claude Code on the Remote Server
 
 ```bash
 # Online install (remote server needs npm registry access)
-ai-ssh --install-remote user@server
+ai-coding-ssh --install-remote user@server
 
 # Offline install (remote server has no internet)
-ai-ssh-install-remote --offline user@server
+ai-coding-ssh-install-remote --offline user@server
 ```
 
 ### 3. Connect and Use
 
 ```bash
-ai-ssh user@server
+ai-coding-ssh user@server
 ```
 
 Once on the remote server, just run `claude`. Environment variables are already configured.
@@ -108,44 +108,44 @@ Once on the remote server, just run `claude`. Environment variables are already 
 
 ## Command Reference
 
-### `ai-ssh`
+### `ai-coding-ssh`
 
 Core command. Automatically starts local proxy, establishes SSH connection, creates reverse tunnel, and configures remote environment variables.
 
 ```bash
 # Basic usage
-ai-ssh user@192.168.1.100
+ai-coding-ssh user@192.168.1.100
 
 # Custom ports
-ai-ssh -p 9090 -r 9090 user@server
+ai-coding-ssh -p 9090 -r 9090 user@server
 
 # Use SSH key
-ai-ssh -i ~/.ssh/id_ed25519 user@server
+ai-coding-ssh -i ~/.ssh/id_ed25519 user@server
 
 # Custom SSH port
-ai-ssh -P 2222 user@server
+ai-coding-ssh -P 2222 user@server
 
 # With auth token (for team sharing)
-ai-ssh -t my-secret-token user@server
+ai-coding-ssh -t my-secret-token user@server
 
 # Extra SSH args (e.g., port forwarding)
-ai-ssh user@server -- -L 3000:localhost:3000
+ai-coding-ssh user@server -- -L 3000:localhost:3000
 
 # Keep proxy running after disconnect (useful for multiple servers)
-ai-ssh -k user@server1
-ai-ssh --no-proxy user@server2  # reuse existing proxy
+ai-coding-ssh -k user@server1
+ai-coding-ssh --no-proxy user@server2  # reuse existing proxy
 ```
 
-### `ai-ssh-install-remote`
+### `ai-coding-ssh-install-remote`
 
 Install Claude Code CLI on the remote server.
 
 ```bash
 # Online install
-ai-ssh-install-remote user@server
+ai-coding-ssh-install-remote user@server
 
 # Offline install (pack local npm package and transfer via scp)
-ai-ssh-install-remote --offline user@server
+ai-coding-ssh-install-remote --offline user@server
 ```
 
 ### Proxy Server (standalone)
@@ -171,9 +171,9 @@ npm test
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `AI_SSH_PROXY_PORT` | Local proxy port | 18080 |
-| `AI_SSH_REMOTE_PORT` | Remote tunnel port | 18080 |
-| `AI_SSH_PROXY_TOKEN` | Proxy auth token | none |
+| `AI_CODING_SSH_PROXY_PORT` | Local proxy port | 18080 |
+| `AI_CODING_SSH_REMOTE_PORT` | Remote tunnel port | 18080 |
+| `AI_CODING_SSH_PROXY_TOKEN` | Proxy auth token | none |
 | `PROXY_UPSTREAM` | Unified gateway URL (overrides all provider routing) | none |
 | `ANTHROPIC_API_KEY` | Anthropic API Key | none (auto-forwarded to remote) |
 | `GEMINI_API_KEY` | Google Gemini API Key | none (auto-forwarded to remote) |
@@ -184,7 +184,7 @@ npm test
 ### Scenario 1: Connect to a Single Intranet Server
 
 ```bash
-ai-ssh dev@10.0.1.50
+ai-coding-ssh dev@10.0.1.50
 # Then just use claude
 ```
 
@@ -192,38 +192,38 @@ ai-ssh dev@10.0.1.50
 
 ```bash
 # Terminal 1: connect to first server, -k keeps proxy running
-ai-ssh -k dev@server1
+ai-coding-ssh -k dev@server1
 
 # Terminal 2: connect to second server, --no-proxy reuses proxy
-ai-ssh --no-proxy dev@server2
+ai-coding-ssh --no-proxy dev@server2
 ```
 
 ### Scenario 3: Jump Host (multi-hop SSH)
 
 ```bash
 # Connect to target through a bastion/jump server
-ai-ssh dev@target -- -J jump@bastion
+ai-coding-ssh dev@target -- -J jump@bastion
 ```
 
 ### Scenario 4: Air-Gapped Environment (no internet at all)
 
 ```bash
 # First, offline install Claude Code
-ai-ssh-install-remote --offline dev@airgapped-server
+ai-coding-ssh-install-remote --offline dev@airgapped-server
 
 # Then connect normally
-ai-ssh dev@airgapped-server
+ai-coding-ssh dev@airgapped-server
 ```
 
 ## Troubleshooting
 
-**Proxy fails to start:** Check `/tmp/ai-coding-ssh.log`
+**Proxy fails to start:** Check `/tmp/ai-coding-ssh-proxy.log`
 
 **Remote claude reports connection refused:** Verify tunnel ports match, check with `ss -tlnp | grep 18080`
 
 **SSE streaming not working:** Ensure Node.js >= 18; the proxy disables response buffering by default
 
-**Port already in use:** Switch to a different port: `ai-ssh -p 19090 -r 19090 user@server`
+**Port already in use:** Switch to a different port: `ai-coding-ssh -p 19090 -r 19090 user@server`
 
 ## Acknowledgments
 

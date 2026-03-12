@@ -4,8 +4,8 @@
   "description": "Use Claude Code, Gemini CLI, and Codex CLI on remote servers via SSH reverse tunnel",
   "type": "module",
   "bin": {
-    "ai-ssh": "./bin/ai-ssh",
-    "ai-ssh-install-remote": "./bin/ai-ssh-install-remote"
+    "ai-coding-ssh": "./bin/ai-coding-ssh",
+    "ai-coding-ssh-install-remote": "./bin/ai-coding-ssh-install-remote"
   },
   "files": [
     "bin/",

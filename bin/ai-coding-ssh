@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # ============================================================
-# ai-ssh — Connect to a remote server with AI coding tools
+# ai-coding-ssh — Connect to a remote server with AI coding tools
 #
 # Automatically starts the local API proxy and creates an SSH
 # reverse tunnel so the remote server can reach AI APIs.
@@ -14,11 +14,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LIB_DIR="$(cd "$SCRIPT_DIR/../lib" && pwd)"
 
 # --- Defaults ---
-PROXY_PORT="${AI_SSH_PROXY_PORT:-18080}"
-REMOTE_PORT="${AI_SSH_REMOTE_PORT:-18080}"
-PROXY_TOKEN="${AI_SSH_PROXY_TOKEN:-}"
-PID_FILE="/tmp/ai-ssh-proxy.pid"
-LOG_FILE="/tmp/ai-ssh-proxy.log"
+PROXY_PORT="${AI_CODING_SSH_PROXY_PORT:-18080}"
+REMOTE_PORT="${AI_CODING_SSH_REMOTE_PORT:-18080}"
+PROXY_TOKEN="${AI_CODING_SSH_PROXY_TOKEN:-}"
+PID_FILE="/tmp/ai-coding-ssh-proxy.pid"
+LOG_FILE="/tmp/ai-coding-ssh-proxy.log"
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -30,12 +30,12 @@ NC='\033[0m'
 # --- Usage ---
 usage() {
   cat <<'USAGE'
-ai-ssh — SSH with AI coding tools reverse tunnel
+ai-coding-ssh — SSH with AI coding tools reverse tunnel
 
 Supports: Claude Code (Anthropic), Gemini CLI (Google), Codex CLI (OpenAI)
 
 Usage:
-  ai-ssh [options] [user@]host [-- extra_ssh_args]
+  ai-coding-ssh [options] [user@]host [-- extra_ssh_args]
 
 Options:
   -p, --proxy-port PORT    Local proxy port (default: 18080)
@@ -49,19 +49,19 @@ Options:
   -h, --help               Show this help
 
 Environment Variables:
-  AI_SSH_PROXY_PORT        Same as --proxy-port
-  AI_SSH_REMOTE_PORT       Same as --remote-port
-  AI_SSH_PROXY_TOKEN       Same as --token
-  ANTHROPIC_API_KEY        Anthropic API key (passed to remote if set)
-  GEMINI_API_KEY           Google Gemini API key (passed to remote if set)
-  GOOGLE_API_KEY           Google API key (alternative to GEMINI_API_KEY)
-  OPENAI_API_KEY           OpenAI API key (passed to remote if set)
+  AI_CODING_SSH_PROXY_PORT   Same as --proxy-port
+  AI_CODING_SSH_REMOTE_PORT  Same as --remote-port
+  AI_CODING_SSH_PROXY_TOKEN  Same as --token
+  ANTHROPIC_API_KEY          Anthropic API key (passed to remote if set)
+  GEMINI_API_KEY             Google Gemini API key (passed to remote if set)
+  GOOGLE_API_KEY             Google API key (alternative to GEMINI_API_KEY)
+  OPENAI_API_KEY             OpenAI API key (passed to remote if set)
 
 Examples:
-  ai-ssh user@server
-  ai-ssh -p 9090 user@server
-  ai-ssh --install-remote user@server
-  ai-ssh user@server -- -L 3000:localhost:3000
+  ai-coding-ssh user@server
+  ai-coding-ssh -p 9090 user@server
+  ai-coding-ssh --install-remote user@server
+  ai-coding-ssh user@server -- -L 3000:localhost:3000
 USAGE
 }
 
@@ -220,7 +220,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$SSH_TARGET" ]; then
-  err "Missing SSH target. Usage: ai-ssh [options] user@host"
+  err "Missing SSH target. Usage: ai-coding-ssh [options] user@host"
   exit 1
 fi
 
@@ -274,7 +274,7 @@ export OPENAI_API_KEY='${OPENAI_API_KEY}'"
 fi
 if [ -n "$PROXY_TOKEN" ]; then
   REMOTE_ENV_LINES="${REMOTE_ENV_LINES}
-export AI_SSH_PROXY_TOKEN='${PROXY_TOKEN}'"
+export AI_CODING_SSH_PROXY_TOKEN='${PROXY_TOKEN}'"
 fi
 
 info "Connecting to ${CYAN}${SSH_TARGET}${NC} with reverse tunnel :${REMOTE_PORT} → :${PROXY_PORT}"

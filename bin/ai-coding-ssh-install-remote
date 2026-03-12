@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # ============================================================
-# ai-ssh-install-remote — Install Claude Code on a remote server
+# ai-coding-ssh-install-remote — Install Claude Code on a remote server
 #
 # Handles both online and offline installation scenarios.
 # ============================================================
@@ -20,10 +20,10 @@ err()   { echo -e "${RED}[✗]${NC} $*" >&2; }
 
 usage() {
   cat <<'USAGE'
-ai-ssh-install-remote — Install Claude Code CLI on a remote server
+ai-coding-ssh-install-remote — Install Claude Code CLI on a remote server
 
 Usage:
-  ai-ssh-install-remote [options] [user@]host
+  ai-coding-ssh-install-remote [options] [user@]host
 
 Options:
   --offline         Pack local Claude Code and transfer via scp (for air-gapped servers)

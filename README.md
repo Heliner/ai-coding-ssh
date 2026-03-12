@@ -16,7 +16,7 @@
 
 - **多 AI 工具支持** — 同时支持 Claude Code (Anthropic)、Gemini CLI (Google)、Codex CLI (OpenAI)
 - **零编译，纯源码** — 全部由 Shell 脚本 + Node.js 源码组成，没有任何二进制文件，可直接阅读、修改和审计
-- **一条命令连接** — `ai-ssh user@server` 自动完成代理启动、SSH 隧道建立、远程环境变量配置
+- **一条命令连接** — `ai-coding-ssh user@server` 自动完成代理启动、SSH 隧道建立、远程环境变量配置
 - **SSE 流式支持** — 代理层完整透传 Server-Sent Events，流式输出不受影响
 - **多服务器复用** — 一个代理实例可同时服务多条 SSH 隧道
 - **可选鉴权** — 支持 token 认证，适合团队共用场景
@@ -44,8 +44,8 @@
 ```
 ai-coding-ssh/
 ├── bin/
-│   ├── ai-ssh                 # 核心连接脚本（Bash）
-│   └── ai-ssh-install-remote  # 远程安装辅助脚本（Bash）
+│   ├── ai-coding-ssh                 # 核心连接脚本（Bash）
+│   └── ai-coding-ssh-install-remote  # 远程安装辅助脚本（Bash）
 ├── lib/
 │   └── proxy.mjs                  # 多提供商 API 代理服务器（Node.js, 纯源码）
 ├── test/
@@ -72,23 +72,23 @@ bash setup.sh
 
 ```bash
 # 直接从项目目录运行
-./bin/ai-ssh user@server
+./bin/ai-coding-ssh user@server
 ```
 
 ### 2. 在远程服务器安装 Claude Code
 
 ```bash
 # 在线安装（远程服务器需要能访问 npm registry）
-ai-ssh --install-remote user@server
+ai-coding-ssh --install-remote user@server
 
 # 离线安装（远程服务器无外网）
-ai-ssh-install-remote --offline user@server
+ai-coding-ssh-install-remote --offline user@server
 ```
 
 ### 3. 连接并使用
 
 ```bash
-ai-ssh user@server
+ai-coding-ssh user@server
 ```
 
 进入远程服务器后，直接运行 `claude` 即可。环境变量已自动配置好。
@@ -107,44 +107,44 @@ ai-ssh user@server
 
 ## 命令详解
 
-### `ai-ssh`
+### `ai-coding-ssh`
 
 核心命令。自动启动本地代理 → SSH 连接 → 建立反向隧道 → 配置远程环境变量。
 
 ```bash
 # 基本用法
-ai-ssh user@192.168.1.100
+ai-coding-ssh user@192.168.1.100
 
 # 自定义端口
-ai-ssh -p 9090 -r 9090 user@server
+ai-coding-ssh -p 9090 -r 9090 user@server
 
 # 使用 SSH 密钥
-ai-ssh -i ~/.ssh/id_ed25519 user@server
+ai-coding-ssh -i ~/.ssh/id_ed25519 user@server
 
 # 自定义 SSH 端口
-ai-ssh -P 2222 user@server
+ai-coding-ssh -P 2222 user@server
 
 # 带 auth token（多人共用时）
-ai-ssh -t my-secret-token user@server
+ai-coding-ssh -t my-secret-token user@server
 
 # 附加 SSH 参数（如端口转发）
-ai-ssh user@server -- -L 3000:localhost:3000
+ai-coding-ssh user@server -- -L 3000:localhost:3000
 
 # 断开后保持代理运行（连接多台服务器时有用）
-ai-ssh -k user@server1
-ai-ssh --no-proxy user@server2  # 复用已有代理
+ai-coding-ssh -k user@server1
+ai-coding-ssh --no-proxy user@server2  # 复用已有代理
 ```
 
-### `ai-ssh-install-remote`
+### `ai-coding-ssh-install-remote`
 
 在远程服务器上安装 Claude Code CLI。
 
 ```bash
 # 在线安装
-ai-ssh-install-remote user@server
+ai-coding-ssh-install-remote user@server
 
 # 离线安装（打包本地 npm 包传过去）
-ai-ssh-install-remote --offline user@server
+ai-coding-ssh-install-remote --offline user@server
 ```
 
 ### 代理服务器（单独使用）
@@ -170,9 +170,9 @@ npm test
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `AI_SSH_PROXY_PORT` | 本地代理端口 | 18080 |
-| `AI_SSH_REMOTE_PORT` | 远程隧道端口 | 18080 |
-| `AI_SSH_PROXY_TOKEN` | 代理鉴权 token | 无 |
+| `AI_CODING_SSH_PROXY_PORT` | 本地代理端口 | 18080 |
+| `AI_CODING_SSH_REMOTE_PORT` | 远程隧道端口 | 18080 |
+| `AI_CODING_SSH_PROXY_TOKEN` | 代理鉴权 token | 无 |
 | `PROXY_UPSTREAM` | 统一网关地址（覆盖所有提供商路由） | 无 |
 | `ANTHROPIC_API_KEY` | Anthropic API Key | 无（自动传递到远程） |
 | `GEMINI_API_KEY` | Google Gemini API Key | 无（自动传递到远程） |
@@ -183,7 +183,7 @@ npm test
 ### 场景 1：连接单台内网服务器
 
 ```bash
-ai-ssh dev@10.0.1.50
+ai-coding-ssh dev@10.0.1.50
 # 进去后直接用 claude
 ```
 
@@ -191,38 +191,38 @@ ai-ssh dev@10.0.1.50
 
 ```bash
 # 终端 1：连第一台，-k 保持代理
-ai-ssh -k dev@server1
+ai-coding-ssh -k dev@server1
 
 # 终端 2：连第二台，--no-proxy 复用代理
-ai-ssh --no-proxy dev@server2
+ai-coding-ssh --no-proxy dev@server2
 ```
 
 ### 场景 3：跳板机（多跳 SSH）
 
 ```bash
 # 通过跳板机连接目标服务器
-ai-ssh dev@target -- -J jump@bastion
+ai-coding-ssh dev@target -- -J jump@bastion
 ```
 
 ### 场景 4：离线环境（完全无外网）
 
 ```bash
 # 先离线安装 Claude Code
-ai-ssh-install-remote --offline dev@airgapped-server
+ai-coding-ssh-install-remote --offline dev@airgapped-server
 
 # 然后正常连接
-ai-ssh dev@airgapped-server
+ai-coding-ssh dev@airgapped-server
 ```
 
 ## 故障排查
 
-**代理启动失败：** 检查 `/tmp/ai-coding-ssh.log`
+**代理启动失败：** 检查 `/tmp/ai-coding-ssh-proxy.log`
 
 **远程 claude 报错 connection refused：** 确认隧道端口一致，`ss -tlnp | grep 18080` 检查
 
 **SSE 流式不工作：** 确认 Node.js >= 18，代理默认关闭了 response buffering
 
-**端口被占用：** 换一个端口 `ai-ssh -p 19090 -r 19090 user@server`
+**端口被占用：** 换一个端口 `ai-coding-ssh -p 19090 -r 19090 user@server`
 
 ## 致谢
 
